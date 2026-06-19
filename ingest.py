@@ -2,18 +2,21 @@
 # Using Qdrant for vector database
 # Langchain for RAG
 # Using BAAI/bge-base-en-v1.5 as embedding model
-
-import json
+# Autocalls a bash script to display stats in terminal at the end of ingestion to view all collections at once
 
 # Imports
+import json
+import subprocess
+
 from datasets import load_dataset
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_qdrant import QdrantClient, QdrantVectorStore
-from qdrant_client import Distance, VectorParams
+from langchain_qdrant import QdrantVectorStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams
 
 # Global vars
-TARGET_N = 1_000
+TARGET_N = 100_000
 SEED = 42
 BATCH_SIZE = 256
 
@@ -60,11 +63,10 @@ def sanitize_collection_name(reporter):
 def ensure_collection(reporter):
     if reporter not in vector_stores:
         collection_name = sanitize_collection_name(reporter)
-        if not client.collection_exits(collection_name):
+        if not client.collection_exists(collection_name):
             client.create_collection(
                 collection_name=collection_name,
-                vectors_config=VectorParams(
-                    size=768, distance=Distance.COSINE),
+                vectors_config=VectorParams(size=768, distance=Distance.COSINE),
             )
         vector_stores[reporter] = QdrantVectorStore(
             client=client,
@@ -129,3 +131,5 @@ with open("corpus_case_ids.json", "w") as f:
 
 print(f"Done. {collected} cases ingested across {
       len(vector_stores)} collections.")
+
+subprocess.run(["./qdrant_stats.sh"])
