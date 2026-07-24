@@ -16,7 +16,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 
 # Global vars
-TARGET_N = 100_000
+TARGET_N = 1_000_000
 SEED = 42
 BATCH_SIZE = 256
 

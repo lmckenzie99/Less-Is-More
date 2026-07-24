@@ -1,0 +1,8 @@
+<s>[INST] You are a legal research assistant at a law firm. A lawyer has asked you to prepare a memorandum on the following legal question. Write a professional, court-ready legal memo with relevant case citations and legal reasoning.
+
+Question: {question}
+
+Relevant case excerpts:
+{context}
+
+Memorandum: [/INST]
