@@ -1,6 +1,6 @@
 # run_batch.py
 # Runs a single query 25 times for both prompt variants at a given precision
-# Outputs to mistral/<precision>/query_<n>/unconstrained/ and /constrained/
+# Outputs to <model>/<precision>/query_<n>/unconstrained/ and /constrained/
 
 import argparse
 import hashlib
@@ -69,13 +69,15 @@ def main():
     )
     parser.add_argument("--collection", default="federal")
     parser.add_argument("--runs", type=int, default=25)
+    parser.add_argument(
+        "--model", default="mistral", choices=["mistral", "saul", "llama"],
+        help="model to use for generation"
+    )
     args = parser.parse_args()
-
-    model = "mistral"
 
     for variant in ["constrained", "unconstrained"]:
         output_dir = os.path.join(
-            "mistral",
+            args.model,
             args.precision,
             f"query_{args.query_num:02d}",
             variant,
@@ -91,13 +93,12 @@ def main():
             print(f"  Skipping {variant}, already has {existing} runs")
             continue
 
-        print(f"\nRunning {remaining} runs: {variant} | {
-              args.precision} | query_{args.query_num:02d}")
+        print(f"\nRunning {remaining} runs: {variant} | {args.precision} | query_{args.query_num:02d} | {args.model}")
 
         for i in range(remaining):
             print(f"  Run {existing+i+1}/{args.runs}...")
             run_single(
-                model=model,
+                model=args.model,
                 precision=args.precision,
                 collection=args.collection,
                 prompt_variant=variant,

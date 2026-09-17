@@ -13,7 +13,7 @@ from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.retrievers import BaseRetriever
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough
 from langchain_huggingface import HuggingFaceEmbeddings, HuggingFacePipeline
 from langchain_qdrant import QdrantVectorStore
 from pydantic import Field
@@ -29,7 +29,7 @@ from transformers import (
 MODELS = {
     "llama": "meta-llama/Llama-3.1-8B-Instruct",
     "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
-    "saul": "Equall/Saul-Instruct-v1",
+    "saul": "Equall/Saul-7B-Instruct-v1",
 }
 
 # federal collections
@@ -90,7 +90,7 @@ def load_model(model_key, precision):
         return_full_text=False,
     )
 
-    return HuggingFacePipeline(pipeline=pipe)
+    return HuggingFacePipeline(pipeline=pipe), tokenizer
 
 
 class FederalRetriever(BaseRetriever):
@@ -117,7 +117,6 @@ class FederalRetriever(BaseRetriever):
             except Exception as e:
                 print(f"Skipping {collection}: {e}")
 
-        # sort all results by score descending, return top k
         all_docs.sort(key=lambda x: x[1], reverse=True)
         return [doc for doc, score in all_docs[: self.k]]
 
@@ -152,7 +151,7 @@ def format_docs(docs):
 
 def run_pipeline(model_key, precision, collection, prompt_variant, query):
     print(f"Loading model {model_key} at {precision}...")
-    llm = load_model(model_key, precision)
+    llm, tokenizer = load_model(model_key, precision)
     retriever = load_retriever(collection)
     prompt = load_prompt(prompt_variant)
 
@@ -178,16 +177,22 @@ def run_pipeline(model_key, precision, collection, prompt_variant, query):
         result = chain.invoke(query)
         latency = time.time() - start
 
+        # token count and throughput
+        output_tokens = len(tokenizer.encode(result))
+        tokens_per_second = output_tokens / latency if latency > 0 else 0
+
         if torch.cuda.is_available():
             vram_used = torch.cuda.max_memory_allocated() / 1024**3
             mlflow.log_metric("peak_vram_gb", vram_used)
             torch.cuda.reset_peak_memory_stats()
 
         mlflow.log_metric("latency_seconds", latency)
+        mlflow.log_metric("output_tokens", output_tokens)
+        mlflow.log_metric("tokens_per_second", tokens_per_second)
         mlflow.log_text(result, "output.txt")
 
         print(f"\n--- Output ---\n{result}")
-        print(f"\nLatency: {latency:.2f}s")
+        print(f"\nLatency: {latency:.2f}s | Tokens: {output_tokens} | Tok/s: {tokens_per_second:.2f}")
 
     return result
 
